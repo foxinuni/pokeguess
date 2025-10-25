@@ -1,0 +1,39 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]  # Trigger on pushes to 'main' branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # Use a fresh Linux VM
+
+    steps:
+      # Step 1: Open the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      # Step 2: Install node and npm
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'          # Solid + Vite work great on Node 18/20
+          cache: 'npm'  
+      
+      # Step 3: Install dependencies
+      - name: Install deps
+        run: npm ci
+
+      # Step 4: Build your project
+      - name: Build
+        run: npm run build
+
+      # Step 5: Deploy to GitHub Pages
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}  # GitHub's auto-generated token
+          publish_dir: ./dist  # Folder containing built files (e.g., HTML, WASM, JS)
+          # Optional: Use `branch: gh-pages` if deploying to a different branch
