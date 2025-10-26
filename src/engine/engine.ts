@@ -28,6 +28,7 @@ export interface PokemonQuestion {
     trait(): keyof PokemonInfo;
     question(): string;
     filter(answer: boolean): PokemonFilter;
+    equals(other: PokemonQuestion): boolean;
 };
 
 class TypeTraitQuestion implements PokemonQuestion {
@@ -52,6 +53,14 @@ class TypeTraitQuestion implements PokemonQuestion {
                 return answer ? hasType : !hasType;
             });
         };
+    }
+
+    public equals(other: PokemonQuestion): boolean {
+        if (other instanceof TypeTraitQuestion) {
+            return other.type == this.type;
+        }
+
+        return false;
     }
 };
 
@@ -78,6 +87,14 @@ class GenerationTraitQuestion implements PokemonQuestion {
             });
         };
     }
+
+    public equals(other: PokemonQuestion): boolean {
+        if (other instanceof GenerationTraitQuestion) {
+            return other.generation == this.generation;
+        }
+
+        return false;
+    }
 };
 
 class HabitatTraitQuestion implements PokemonQuestion {
@@ -103,6 +120,14 @@ class HabitatTraitQuestion implements PokemonQuestion {
             });
         };
     }
+
+    public equals(other: PokemonQuestion): boolean {
+        if (other instanceof HabitatTraitQuestion) {
+            return other.habitat == this.habitat;
+        }
+
+        return false;
+    }
 };
 
 class LegendaryTraitQuestion implements PokemonQuestion {
@@ -120,6 +145,14 @@ class LegendaryTraitQuestion implements PokemonQuestion {
                 return answer ? pokemon.is_legendary : !pokemon.is_legendary;
             });
         };
+    }
+
+    public equals(other: PokemonQuestion): boolean {
+        if (other instanceof LegendaryTraitQuestion) {
+            return true;
+        }
+
+        return false;
     }
 };
 
@@ -152,6 +185,14 @@ class EvolutionTraitQuestion implements PokemonQuestion {
             });
         };
     }
+
+    public equals(other: PokemonQuestion): boolean {
+        if (other instanceof EvolutionTraitQuestion) {
+            return other.evolution == this.evolution && other.evolves_from == this.evolves_from;
+        }
+
+        return false;
+    }
 };
 
 class ShapeTraitQuestion implements PokemonQuestion {
@@ -176,6 +217,14 @@ class ShapeTraitQuestion implements PokemonQuestion {
                 return answer ? hasShape : !hasShape;
             });
         };
+    }
+
+    public equals(other: PokemonQuestion): boolean {
+        if (other instanceof ShapeTraitQuestion) {
+            return other.shape == this.shape;
+        }
+
+        return false;
     }
 };
 
@@ -202,6 +251,10 @@ class NotableTraitQuestion implements PokemonQuestion {
             });
         };
     }
+
+    public equals(_: PokemonQuestion): boolean {
+        return false; // It is impossible for a trait like this to repeat.
+    }
 };
 
 export class Engine {
@@ -209,16 +262,28 @@ export class Engine {
     private pokemons: PokemonInfo[];
     private filtered_pokemons: PokemonInfo[];
     private filters: PokemonFilter[] = [];
+    private previous_questions: PokemonQuestion[];
     private current_question: PokemonQuestion;
 
     constructor(pokemons: PokemonInfo[]) {
         this.pokemons = pokemons;
         this.filtered_pokemons = pokemons;
+        this.previous_questions = [];
         this.current_guess = Math.random() * pokemons.length | 0;
         this.current_question = this.generateQuestion();
     }
 
-    private generateQuestion(): PokemonQuestion {
+    private checkUnique(question: PokemonQuestion) {
+        for (const other of this.previous_questions) {
+            if (other.equals(question)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private randomQuestion(): PokemonQuestion {
         const trait = query_traits[Math.random() * query_traits.length | 0];
         const pokemon = this.filtered_pokemons[this.current_guess];
 
@@ -256,6 +321,15 @@ export class Engine {
         }
     }
 
+    private generateQuestion(): PokemonQuestion {
+        let question = this.randomQuestion();
+        while (!this.checkUnique(question)) {
+            question = this.generateQuestion();
+        }
+
+        return question;
+    }
+
     public getPossiblePokemons(): PokemonInfo[] {
         let possible_pokemons = this.pokemons;
 
@@ -282,6 +356,7 @@ export class Engine {
         const filter = this.current_question.filter(answer);
         this.filtered_pokemons = filter(this.filtered_pokemons);
         this.filters.push(filter);
+        this.previous_questions.push(this.current_question);
 
         if (this.filtered_pokemons.length > 0) {
             this.current_guess = Math.random() * this.filtered_pokemons.length | 0;
